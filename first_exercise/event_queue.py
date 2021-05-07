@@ -1,18 +1,32 @@
 import heapq
-class EventQueue:
+
+
+class _EventQueue:
     def __init__(self):
+        self.history = []
         self.queue = []
         heapq.heapify(self.queue)
-    
+
     def pop(self):
-        return 
+        return heapq.heappop(self.queue)
 
     def push(self, event):
-        return
-        
-    def start(self):
-        return
+        heapq.heappush(self.queue, event)
 
-    def do(self):
-        return
-    
+    def work(self):
+        while self.queue:
+            ev = self.pop()
+            self.history.append(ev)
+            ev.execute()
+
+    def isNotEmpty(self):
+        return len(self.queue) > 0
+
+    def __str__(self):
+        res = ""
+        for ev in self.history:
+            res += str(ev) + "\n"
+
+        return res
+
+EventQueue = _EventQueue()
