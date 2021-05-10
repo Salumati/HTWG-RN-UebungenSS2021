@@ -1,9 +1,11 @@
-from event_queue import EventQueue
 from customer import Customer
+from stations import Stations, StartStations, StopStations
 from station_visits import stationVisitsK1, stationVisitsK2
-from event_queue import EventQueue
 from statistics import Statistics
-from stations import Stations
+from customer_generator import CustomerGenerator
+from time import sleep
+from threading import Event, active_count, current_thread
+from config import sleepFactor, terminationTime
 
 
 """
@@ -21,34 +23,56 @@ when all start- and customer-threads are closed.
 
 # in seconds
 customerK1StartTime = 0
-customerK1SpawnTime = 20
+customerK1SpawnTime = 200
 customerK2StartTime = 1
 customerK2SpawnTime = 60
 
 class Supermarket:
     def __init__(self):
+        self.stopEv = Event()
+        
         self.customerK1 = Customer(
-            "K1-1", stationVisitsK1, customerK1StartTime, customerK1SpawnTime
+            "K1-1", stationVisitsK1
         )
 
         self.customerK2 = Customer(
-            "K2-1", stationVisitsK2, customerK2StartTime, customerK2SpawnTime
+            "K2-1", stationVisitsK2
         )
 
-    def run(self):
-        self.customerK1.startShopping()
-        self.customerK2.startShopping()
+        self.customerGeneratorK1 = CustomerGenerator(self.customerK1.name, self.customerK1.stationVisits, customerK1SpawnTime, self.stopEv)
+        self.customerGeneratorK2 = CustomerGenerator(self.customerK2.name, self.customerK2.stationVisits, customerK2SpawnTime, self.stopEv)
 
-        EventQueue.work()
-        print(EventQueue)
-        
-        statistics = Statistics(EventQueue.history)
-        print("Last served customer time", statistics.lastServedCustomerTime())
-        print("Average complete shopping time", statistics.completeShoppingTime())
-        print("Completely served customers", statistics.servedCustomers())
-        
+    def run(self):
+        StartStations()
+        sleep(customerK1StartTime * sleepFactor)
+        print("first customer spawned")
+        self.customerK1.start()
+        self.customerGeneratorK1.start()
+        sleep(customerK2StartTime * sleepFactor)
+        print("second customer spawned")
+        self.customerK2.start()
+        self.customerGeneratorK2.start()
+
+        sleep(terminationTime * sleepFactor)
+        print("""
+        ---------------------------
+        stop spawning new customers
+        ---------------------------
+        """)
+        self.stopEv.set()
+
+        while(True):
+            if(active_count() - 1 == len(Stations)):
+                print("stopping stations")
+                StopStations()
+                break
+
+        print("Last served customer", Statistics.lastServedCustomer[0], "at", Statistics.lastServedCustomer[1])
+        print("Average shopping time for customer type 1", Statistics.averageShoppingTimeK1())
+        print("Average shopping time for customer type 2", Statistics.averageShoppingTimeK2())
+        print("Completely served customers", Statistics.completelyServedCustomers())
         for station in Stations:
-            print("Dropped customer percentage for", station, statistics.droppedStationPercentage(station))
+            print("dropped customer percentage at station", station, ":", Statistics.droppedCustomerPercentage(station))
 
 supermarket = Supermarket()
 supermarket.run()

@@ -1,8 +1,6 @@
-import event
-import event_queue
-import time
 from time import sleep
-from threading import Event, Lock
+from threading import Event, Lock, Thread
+from config import sleepFactor
 
 """
 Requirements:
@@ -20,32 +18,52 @@ The queue and the arrEv need to be protected with locks.
 """
 
 class QueuedCustomer:
-    def __init__(self, name, servings):
+    def __init__(self, name, serveEv, servings):
         self.name = name
         self.servings = servings
-class Station:
-    def __init__(self, name, servingTime=0):
+        self.serveEv = serveEv
+
+class Station(Thread):
+    def __init__(self, name, stopEv, servingTime=0):
+        Thread.__init__(self)
         self.name = name
         self.servingTime = servingTime
         self.customerQueue = []
+        self.arrEv = Event()
+        self.queueLock = Lock()
+        self.arrEvLock = Lock()
+        self.stopEv = stopEv
+        
+    
+    def run(self):
+        while(not self.stopEv.is_set()):
+            self.arrEv.wait()
+            if self.arrEv.is_set():
+                while(self.queuedCustomers() > 0):
+                    customer = self.unqueueCustomer()
+                    sleep(customer.servings * self.servingTime * sleepFactor)
+                    print("station", self.name, "served", customer.name)
+                    customer.serveEv.set()
+                self.arrEv.clear()
 
-    def queueCustomer(self, customerName, servings):
-        self.customerQueue.append(QueuedCustomer(customerName, servings))
+    
 
-    def unqueueCustomer(self, customerName):
-        self.customerQueue.pop()
 
     def queuedCustomers(self):
-        return self.customerQueue
+        return len(self.customerQueue)
 
-    def isNotEmpty(self):
-        return len(self.queuedCustomers()) > 0
+    def queueCustomer(self, customerName, serveEv, servings):
+        self.queueLock.acquire()
+        self.customerQueue.append(QueuedCustomer(customerName, serveEv, servings))
+        self.queueLock.release()
 
-    def copy(self):
-        return Station(self.name, self.servingTime)
+    def arrive(self):
+        self.arrEvLock.acquire()
+        self.arrEv.set()
+        self.arrEvLock.release()
 
-    def queuedCustomersServingTime(self):
-        time = 0
-        for queuedCustomer in self.customerQueue:
-            time += queuedCustomer.servings * self.servingTime
-        return time
+    def unqueueCustomer(self):
+        self.queueLock.acquire()
+        customer = self.customerQueue.pop()
+        self.queueLock.release()
+        return customer
