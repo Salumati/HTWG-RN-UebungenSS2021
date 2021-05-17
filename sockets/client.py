@@ -21,6 +21,7 @@ class Client:
     def do(self):
         self.connectToServer()
         self.sendMsg()
+        self.getMsg()
         self.close()
 
     def formatMsg(self, msg):
@@ -34,24 +35,26 @@ class Client:
         # split msg in its parameter:
         splitMsg = msg.split(" ", 3)
         id = int(splitMsg[0])
-        calc = msg[1]
+        calc = splitMsg[1]
         n = int(splitMsg[2])
         listOfNum = list(map(int, splitMsg[3].split(" ")))
         print(listOfNum)
-        return pack(f'I10sB{n}i', id, calc, n, *listOfNum)
+        return pack(f'I10sB{n}i', id, bytes(calc, 'utf-8'), n, *listOfNum)
 
     def sendMsg(self):
         print("please enter math operation in format:\n <ID> <calculation> <numbersOfvalues> <values>")
         msg = input()
-        msg = self.encodeString(self.formatMsg(msg))
-        self.clientSocket.send(msg)
+        msg = self.formatMsg(msg)
+        print(f'message is: {msg}')
+        self.clientSocket.sendAll(msg)
 
     def getMsg(self):
         # format: <ID><Ergebnis>
         # ID is unsigned int 4 bytes (I)
         # Ergebnis = unsigned int.(I)
-        result = self.decodeString(self.clientSocket.recv(1024))
-        result = unpack("II", result)
+        msg = self.clientSocket.recv(1024)
+        print(f'laenge der nachricht: {len(msg)}')
+        result = unpack("II", msg)
         print(f'result is:\n {result[1]}')
 
     # establish connection

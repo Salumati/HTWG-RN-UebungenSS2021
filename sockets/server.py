@@ -1,5 +1,6 @@
 import numpy as np
 import socket
+import base64
 from struct import unpack, pack
 
 class Server:
@@ -23,6 +24,7 @@ class Server:
             connectionSocket, _ = self.serverSocket.accept()
 
             result = self.getMsg(connectionSocket)
+            print(f'calculated: {result}')
             #self.sendMsg(connectionSocket, result)
             self.close(connectionSocket)
 
@@ -38,16 +40,17 @@ class Server:
 
     # recive msg
     def getMsg(self, connectionSocket):
-        msg = self.decodeString(connectionSocket.recv(1024))
-        print(msg[0:2])
-        part = unpack(f'I10sBi', msg[0:4])
-
-        #unpacked = unpack(f'{part[-1]}i', msg[4:])
-        #return self.calculate({unpacked[1]}, )
+        msg = connectionSocket.recv(2028)
+        print(msg)
+        print(len(msg))
+        part = unpack(f'I10sB', msg[0:15])
+        unpacked = unpack(f'{part[-1]}i', msg[4:])
+        return self.calculate({unpacked[1]}, )
 
     # do calculation
     def calculate(type, listOfNum):
         if(type == "Summe"):
+            return "Summe"
             return np.sum(listOfNum)
         elif(type == "Produkt"):
             return np.prod(listOfNum)
@@ -55,6 +58,8 @@ class Server:
             return np.min(listOfNum)
         elif(type == "Maximum"):
             return np.max(listOfNum)
+        else:
+            return -1
 
 server = Server()
 server.do()
