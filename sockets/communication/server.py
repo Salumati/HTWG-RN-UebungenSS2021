@@ -55,7 +55,7 @@ class Server:
 
     # do calculation
     def calculate(self, calcType, listOfNum):
-
+        
         if(calcType == "Summe"):
             print("summing")
             return np.sum(listOfNum)
